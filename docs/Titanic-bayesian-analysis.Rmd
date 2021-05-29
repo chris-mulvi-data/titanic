@@ -1,0 +1,140 @@
+---
+title: "Titanic Prediction with Bayes"
+author: "Chris Mulvihill"
+date: "June 2021"
+output: html_notebook
+---
+
+# The Approach
+
+In the examples of analysis of this data set that I have seen, there is
+a pattern of the output being a logical true/false statement of whether
+someone had survived. This generally makes sense since this is using a
+well known data set that that the results can be checked against to see
+if the prediction was correct. However, this is often not the case. In
+my studies, I have found that it is better to include how certain we are
+of the results rather than simply including the true/false output.
+
+Using Bayesian statistics within the model, it will be possible to
+predict the likelihood of a passenger surviving based on the
+probabilities found in the training data.
+
+Using variations of the following formula for each variable in the data
+set, it will be possible to compute the base probabilities that can then
+be combined for each combination that a passenger fits into.
+
+$$
+P\left(survived|female\right)=\frac{P\left(female|survived\right)*P\left(survived\right)}{P\left(female\right)}
+$$
+
+For example, if a passenger if female with a first class ticket, we
+combine the probabilities for survival given that they are female with
+the probability that they have a first class ticket since each factor
+may contribute to their survival.
+
+# Initial EDA
+
+Importing the data:
+
+```{r Importing The Data Files, message=FALSE, warning=FALSE}
+# loading the tidyverse package
+library(tidyverse)
+
+# reading in the training data
+titanic.train <- read_csv("../data/train.csv")
+
+# reading in the test data
+titanic.test <- read_csv("../data/test.csv")
+```
+
+Checking that the data was read in correctly
+First 10 rows of titanic.train
+```{r first 10 lines of train, echo=TRUE}
+head(titanic.train, n=10)
+```
+First 10 rows of titanic.test
+```{r first 10 lines of test, echo=TRUE}
+head(titanic.test, n=10)
+```
+
+## combining the data sets for cleaning
+### Step 1: make the columns match
+
+* Check that the names are the same
+* add a "survived" column to the test set
+
+```{r finding different names}
+train.names <- names(titanic.train)
+test.names <- names(titanic.test)
+setdiff(train.names, test.names)
+```
+```{r finding same names}
+intersect(train.names, test.names)
+```
+
+The column names are the same with the exception of the "Survived" column that is missing from the test data.
+
+```{r adding survived column to the test data}
+titanic.test$Survived <- NA
+head(titanic.test)
+```
+
+### Step 2: Combine the data sets
+using rbind to combine the data into a single set.
+
+```{r combine the sets}
+titanic.full <- rbind(titanic.test, titanic.train)
+nrow(titanic.full)
+```
+
+## Cleaning the Data
+### Cleaning "Age"
+Looking for missing data in the *Age* column
+```{r finding missing age values}
+table(is.na(titanic.full$Age))
+```
+There are 263 missing values in the Age data. 
+
+Writing a function to find the mode
+```{r find the mode}
+getMode <- function(x){
+  keys <- na.omit(unique(x))
+  keys[which.max(tabulate(match(x, keys)))]
+}
+```
+
+Getting the mode of "Age"
+```{r finding Age Mode}
+age.mode <- getMode(titanic.full$Age)
+age.mode
+```
+
+Replacing the missing age with the mode for age
+```{r replacing missing Age}
+titanic.full <- titanic.full %>% 
+  mutate(Age = ifelse(is.na(Age), age.mode, Age))
+table(is.na(titanic.full$Age))
+```
+All NA values in "Age" have been replaced with the mode of "Age".
+
+### Cleaning The "Fare" data
+Finding missing "Fare" values
+```{r find missing Fare}
+table(is.na(titanic.full$Fare))
+```
+Only 1 missing Fare
+
+Finding the Mode of the Fare to replace the missing value
+```{r Find Fare Mode}
+fare.mode <- getMode(titanic.full$Fare)
+fare.mode
+```
+
+Replacing the missing Fare with the mode
+```{r replacing missing fare}
+titanic.full <- titanic.full %>% 
+  mutate(Fare = ifelse(is.na(Fare), fare.mode, Fare))
+table(is.na(titanic.full$Fare))
+```
+
+Fare is now clean. 

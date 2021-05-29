@@ -1,0 +1,6 @@
+"0","age.mode <- getMode(titanic.full$Age)"
+"0","age.mode"
+"1","[1]"
+"1"," 24"
+"1","
+"
