@@ -1,4 +1,0 @@
-"0","getMode <- function(x){"
-"0","  keys <- na.omit(unique(x))"
-"0","  keys[which.max(tabulate(match(x, keys)))]"
-"0","}"

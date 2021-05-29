@@ -1,6 +1,0 @@
-"0","titanic.full <- rbind(titanic.test, titanic.train)"
-"0","nrow(titanic.full)"
-"1","[1]"
-"1"," 1309"
-"1","
-"
