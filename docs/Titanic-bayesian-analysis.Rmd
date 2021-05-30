@@ -2,7 +2,7 @@
 title: "Titanic Prediction with Bayes"
 author: "Chris Mulvihill"
 date: "June 2021"
-output: html_document
+output: html_notebook
 ---
 
 # The Approach
@@ -255,9 +255,10 @@ survived_by_sex
 
 ```{r plot of survived by sex, echo=FALSE}
 survived_by_sex %>% ggplot(aes(prob_sex, prob_survived)) +
-  geom_label(aes(label = sex)) +
+  geom_label(aes(label = sex, fill = sex)) +
   ylab("Likelihood of Suviving given Sex") +
-  xlab("Likelihood of each Sex")
+  xlab("Likelihood of each Sex") +
+  guides(fill = F)
 ```
 
 
@@ -332,9 +333,10 @@ survived_by_class
 ```
 ```{r plot of survival and class probabilites, echo=FALSE}
 survived_by_class %>% ggplot(aes(class_prob, survival_prob)) +
-  geom_label(aes(label = Class)) +
+  geom_label(aes(label = Class, fill = Class)) +
   xlab("Likelihood of Being in each Class") +
-  ylab("Likelihood of Sruviving in each Class")
+  ylab("Likelihood of Sruviving in each Class") +
+  guides(fill = FALSE)
 ```
 
 
@@ -363,14 +365,17 @@ sex_prob <- function(x){
 
 ```
 
-```{r}
+```{r reviewing the outcome so far}
 titanic.clean %>% mutate(
-  class_prob = sapply(Pclass, class_prob),
-  sex_prob = sapply(Sex, sex_prob),
-  survived_prob = class_prob * sex_prob
+  survived_class_prob = sapply(Pclass, class_prob),
+  survived_sex_prob = sapply(Sex, sex_prob),
+  survived_prob = survived_class_prob * survived_sex_prob
 ) %>% 
-  select(Sex, sex_prob, Pclass, class_prob, Survived, survived_prob) %>%
-  filter(!is.na(Survived)) %>%
-  head(n=10)
+  select(Survived, survived_prob) %>%
+  filter(survived_prob >.1) %>%
+  # pull(survived_prob)%>%
+  summary()
+  # ggplot(aes(survived_prob, fill = Sex, color = Pclass))+
+  # geom_density(aes(y=..density..))
 ```
 
