@@ -251,6 +251,8 @@ survived_by_sex <- data.frame(
 )
 survived_by_sex
 ```
+
+
 ```{r plot of survived by sex, echo=FALSE}
 survived_by_sex %>% ggplot(aes(prob_sex, prob_survived)) +
   geom_label(aes(label = sex)) +
@@ -342,19 +344,19 @@ building a function to compute survival based on sex and class
 ```{r compute survival from sex and class}
 class_prob <- function(x){
   if(x == 3){
-    prob <- p.class.third
+    prob <- p.survived.third
   } else if(x == 2){
-    prob <- p.class.second
+    prob <- p.survived.second
   } else if(x == 1){
-    prob <- p.class.first
+    prob <- p.survived.first
   }
   return(prob)
 }
 sex_prob <- function(x){
   if(x == "female"){
-    prob <- p_female
+    prob <- p.survived.female
   } else if(x == "male"){
-    prob <- 1-p_female
+    prob <- p.survived.male
   }
   return(prob)
 }
@@ -367,7 +369,7 @@ titanic.clean %>% mutate(
   sex_prob = sapply(Sex, sex_prob),
   survived_prob = class_prob * sex_prob
 ) %>% 
-  select(Survived, Sex, Pclass, survived_prob) %>%
+  select(Sex, sex_prob, Pclass, class_prob, Survived, survived_prob) %>%
   filter(!is.na(Survived)) %>%
   head(n=10)
 ```
