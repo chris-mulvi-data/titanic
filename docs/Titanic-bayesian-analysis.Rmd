@@ -111,9 +111,9 @@ age.mode
 
 Replacing the missing age with the mode for age
 ```{r replacing missing Age}
-titanic.full <- titanic.full %>% 
+titanic.clean <- titanic.full %>% 
   mutate(Age = ifelse(is.na(Age), age.mode, Age))
-table(is.na(titanic.full$Age))
+table(is.na(titanic.clean$Age))
 ```
 All NA values in "Age" have been replaced with the mode of "Age".
 
@@ -132,9 +132,243 @@ fare.mode
 
 Replacing the missing Fare with the mode
 ```{r replacing missing fare}
-titanic.full <- titanic.full %>% 
+titanic.clean <- titanic.clean %>% 
   mutate(Fare = ifelse(is.na(Fare), fare.mode, Fare))
-table(is.na(titanic.full$Fare))
+table(is.na(titanic.clean$Fare))
 ```
 
 Fare is now clean. 
+
+### Cleaning Pclass data
+```{r finding missing data in Pclass}
+table(is.na(titanic.full$Pclass))
+```
+No missing values in Pclass
+
+### Cleaning Sex data
+```{r finding missing data in Sex}
+table(is.na(titanic.full$Sex))
+```
+No missing values in Sex
+
+### Cleaning the Embarked data
+```{r finding missing values in Embarked}
+table(is.na(titanic.full$Embarked))
+```
+There are 2 missing values in Embarked. 
+
+Finding the most common value to replace the missing data with:
+```{r table of Embarked}
+table(titanic.full$Embarked)
+```
+"S" is the most common value so I will replace the missing data with "S". 
+
+```{r replacing missing Embarked data}
+titanic.clean <- titanic.clean %>% 
+  mutate(Embarked = ifelse(is.na(Embarked), "S", Embarked))
+table(titanic.clean$Embarked)
+```
+
+The 2 missing values have been replaced with "S".
+
+### Cleaning the Cabin data
+```{r viewing the cabin data}
+titanic.full %>% 
+  filter(!is.na(Cabin)) %>%
+  .$Cabin %>%
+  head(n=50)
+```
+
+The Cabin values all start with a letter which is likely associated with a section on the ship.  The way modern airplane or theater tickets are laid out.  If the letter is extracted from each cabin id and placed in a new "Cabin_Section" vector, it can be used to further classify passengers. *The theory that is that some cabins sections may have been closer to the life boats. 
+
+```{r splitting the cabin letter from number}
+titanic.clean <- titanic.clean %>% 
+  separate(Cabin, into = c("Cabin_Section", "Cabin_Number"), "\\d", extra = "merge")
+```
+```{r table of the cabin sections}
+table(titanic.clean[!is.na(titanic.clean$Cabin_Section), "Cabin_Section"])
+```
+
+```{r missing cabin secion data}
+table(is.na(titanic.clean$Cabin_Section))
+```
+there are too many NAs to fill for this data to be accurate. 
+
+
+# Determining Initial Probabilites
+Probability of Survival from the test data
+```{r survived probability}
+p_survived <- titanic.clean %>%
+  filter(!is.na(Survived)) %>% 
+  pull(Survived) %>%
+  mean()
+p_survived
+```
+
+
+## Probability of survival given sex:
+$$P\left(survival\ |\ sex_{i}\right) = \frac{P\left(sex_{i}\ |\ survival\right)* P\left(survival\right)}{P\left(sex_{i}\right)}$$
+
+```{r probability of a passenger being female}
+p_female <- mean(titanic.clean$Sex[1:891] == "female")
+p_female
+```
+
+```{r probability of surviving}
+p_survived <- titanic.clean %>%
+  filter(!is.na(Survived)) %>%
+  pull(Survived) %>%
+  mean()
+p_survived
+```
+
+
+```{r probability of female given survived}
+p.female.survived <- titanic.clean %>% filter(Survived == 1) %>%
+  .$Sex %>%
+  table() 
+p.female.survived <- p.female.survived[[1]]/sum(p.female.survived)
+p.female.survived
+```
+
+```{r prob of survived given female}
+p.survived.female <- (p.female.survived * p_survived)/p_female
+p.survived.female
+```
+
+There is a 70.8% of a female surviving based the Bayesian probability. 
+
+```{r}
+p.survived.male <- ((1 - p.female.survived) * p_survived) / (1 - p_female)
+p.survived.male
+```
+
+```{r table of survived by sex}
+survived_by_sex <- data.frame(
+  sex = c("Female", "Male"),
+  prob_survived = c(p.survived.female, p.survived.male),
+  prob_sex = c(p_female, 1-p_female)
+)
+survived_by_sex
+```
+```{r plot of survived by sex, echo=FALSE}
+survived_by_sex %>% ggplot(aes(prob_sex, prob_survived)) +
+  geom_label(aes(label = sex)) +
+  ylab("Likelihood of Suviving given Sex") +
+  xlab("Likelihood of each Sex")
+```
+
+
+## Determining probabilities per class
+$$ P\left(Survived\ |\ Class_{i}\right) = 
+\frac{P\left(Survived\ |\ Class_{i}\right) * P\left(Class_{i}\right)}
+{P\left(Survived\right)}$$
+### Finding the probability of each class given survived: 
+
+```{r defining a class table given survived}
+class.survived <- titanic.clean %>%
+  filter(Survived == 1) %>%
+  pull(Pclass) %>%
+  table()
+class.survived
+```
+```{r class table not dependant on survived}
+class <- titanic.clean %>% 
+  filter(!is.na(Survived)) %>%
+  pull(Pclass) %>%
+  table()
+class
+```
+```{r probablitites of each class}
+p.class.first <- class[[1]]/sum(class)
+p.class.second <- class[[2]]/sum(class)
+p.class.third <- class[[3]]/sum(class)
+```
+
+
+
+```{r probility of first class given survived}
+p.first.survived <- class.survived[[1]] / sum(class.survived)
+p.first.survived
+```
+The probability of being in first class given that a passenger survived is 39.76%
+
+```{r probability of second class given survived}
+p.second.survived <- class.survived[[2]] / sum(class.survived)
+p.second.survived
+```
+The probability of being in second class given that a passenger survived is 25.43%
+
+```{r probability of third class given survived}
+p.third.survived <- class.survived[[3]] / sum(class.survived)
+p.third.survived
+```
+The probability of being in third class given that a passenger survived is 34.79%
+
+### Finding the probablity of surviving in each class:
+
+```{r probability of survived given first class}
+p.survived.first <- (p.first.survived * p_survived)/p.class.first
+p.survived.first
+```
+
+```{r probability of survived given second class}
+p.survived.second <- (p.second.survived * p_survived)/p.class.second
+p.survived.second
+```
+
+```{r probability of survived given thrid class}
+p.survived.third <- (p.third.survived * p_survived)/p.class.third
+p.survived.third
+```
+
+```{r table of survival probabilities given class}
+survived_by_class <- data.frame(Class = c("first", "second", "third"),
+           survival_prob = c(p.survived.first, p.survived.second, p.survived.third),
+           class_prob = c(p.class.first, p.class.second, p.class.third))
+survived_by_class
+```
+```{r plot of survival and class probabilites, echo=FALSE}
+survived_by_class %>% ggplot(aes(class_prob, survival_prob)) +
+  geom_label(aes(label = Class)) +
+  xlab("Likelihood of Being in each Class") +
+  ylab("Likelihood of Sruviving in each Class")
+```
+
+
+
+# Testing The Model So Far
+building a function to compute survival based on sex and class
+```{r compute survival from sex and class}
+class_prob <- function(x){
+  if(x == 3){
+    prob <- p.class.third
+  } else if(x == 2){
+    prob <- p.class.second
+  } else if(x == 1){
+    prob <- p.class.first
+  }
+  return(prob)
+}
+sex_prob <- function(x){
+  if(x == "female"){
+    prob <- p_female
+  } else if(x == "male"){
+    prob <- 1-p_female
+  }
+  return(prob)
+}
+
+```
+
+```{r}
+titanic.clean %>% mutate(
+  class_prob = sapply(Pclass, class_prob),
+  sex_prob = sapply(Sex, sex_prob),
+  survived_prob = class_prob * sex_prob
+) %>% 
+  select(Survived, Sex, Pclass, survived_prob) %>%
+  filter(!is.na(Survived)) %>%
+  head(n=10)
+```
+
