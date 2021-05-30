@@ -339,6 +339,95 @@ survived_by_class %>% ggplot(aes(class_prob, survival_prob)) +
   guides(fill = FALSE)
 ```
 
+### Finding probabilites for each age group
+$$
+P\left(Survived\ |\ AgeGroup_i\right) = 
+\frac{
+P\left(AgeGroup_i\ |\ Survived\right) * P\left(Survived\right)
+}{
+P\left(AgeGroup_i\right)
+}
+$$
+####Defining the age groups
+```{r summary of the Age vector}
+summary(titanic.clean$Age)
+```
+
+building a function to determine age group. 
+```{r defining age group function}
+age_group <- function(x){
+  if(x< 18){
+    group <- "Child"
+  } else if (between(x, 18, 35)){
+    group <- "Young_Adult"
+  } else if (between(x, 35, 65)){
+    group <- "Adult"
+  } else if (x > 65){
+    group <- "Senior"
+  }
+  return(group)
+}
+```
+
+Adding the age group vector
+```{r adding age group to the table}
+titanic.clean <- titanic.clean %>% 
+  mutate(Age_Group = sapply(Age, age_group))
+head(titanic.clean$Age_Group, n=10)
+```
+Determining the probability that a passenger would be in each age group.
+```{r age group table}
+age.table <- titanic.clean %>% 
+  filter(!is.na(Survived))%>%
+  pull(Age_Group) %>%
+  table()
+age.table
+```
+```{r calculating probabilities of each age gropu}
+p.age.child <- age.table[[2]]/sum(age.table)
+p.age.Yadult <- age.table[[4]]/sum(age.table)
+p.age.adult <- age.table[[1]]/sum(age.table)
+p.age.senior <- age.table[[3]]/sum(age.table)
+```
+
+```{r building table of survived age ranges}
+age.survived.table <- titanic.clean %>%
+  filter(Survived == 1) %>%
+  pull(Age_Group) %>%
+  table()
+age.survived.table
+```
+
+```{r defining probability of age group given survived}
+p.child.survived <- age.survived.table[[2]]/sum(age.survived.table)
+p.Yadult.survived <- age.survived.table[[4]]/sum(age.survived.table)
+p.adult.survived <- age.survived.table[[1]]/sum(age.survived.table)
+p.senior.survived <- age.survived.table[[3]]/sum(age.survived.table)
+```
+
+```{r probability of survived given age group}
+p.survived.child <- (p.child.survived * p_survived) / p.age.child
+p.survived.Yadult <- (p.Yadult.survived * p_survived) / p.age.Yadult
+p.survived.adult <- (p.adult.survived * p_survived) / p.age.adult
+p.survived.senior <- (p.senior.survived * p_survived) / p.age.senior
+```
+
+```{r table of survived by age group}
+survived_by_age <- data.frame(
+  Age_Group = c("Child", "Young Adult", "Adult", "Senior"),
+  Survived_Prob = c(p.survived.child, p.survived.Yadult, p.survived.adult, p.survived.senior),
+  Age_Prob = c(p.age.child, p.age.Yadult, p.age.adult, p.age.senior)
+)
+survived_by_age
+```
+
+```{r plot of survival given age group}
+survived_by_age %>% ggplot(aes(Age_Prob, Survived_Prob))+
+  geom_label(aes(label = Age_Group, fill = Age_Group)) + 
+  xlab("Likelihood of Age Group") +
+  ylab("Likelihood of Survived given Age Group") +
+  guides(fill = F)
+```
 
 
 # Testing The Model So Far
@@ -354,6 +443,7 @@ class_prob <- function(x){
   }
   return(prob)
 }
+
 sex_prob <- function(x){
   if(x == "female"){
     prob <- p.survived.female
@@ -363,19 +453,51 @@ sex_prob <- function(x){
   return(prob)
 }
 
+age_prob <- function(x){
+  if(x == "Child"){
+    prob <- p.survived.child
+  } else if(x == "Young_Adult"){
+    prob <- p.survived.Yadult
+  } else if(x == "Adult"){
+    prob <- p.survived.adult
+  } else if(x == "Senior"){
+    prob <- p.survived.senior
+  } else {
+    prob <- NA
+  }
+  return(prob)
+}
 ```
 
 ```{r reviewing the outcome so far}
-titanic.clean %>% mutate(
+titanic.clean <- titanic.clean %>% mutate(
   survived_class_prob = sapply(Pclass, class_prob),
   survived_sex_prob = sapply(Sex, sex_prob),
-  survived_prob = survived_class_prob * survived_sex_prob
+  survived_age_prob = sapply(Age_Group, age_prob),
+  survived_prob = survived_class_prob * survived_sex_prob * survived_age_prob
 ) %>% 
-  select(Survived, survived_prob) %>%
-  filter(survived_prob >.1) %>%
-  # pull(survived_prob)%>%
-  summary()
+  select(!c(survived_class_prob, survived_sex_prob, survived_age_prob))
+  # filter(survived_prob >.1) %>%
+  # filter(!is.na(Survived))%>%
+  # pull(Survived)%>%
+  # # head(n=10)
+  # summary()
   # ggplot(aes(survived_prob, fill = Sex, color = Pclass))+
   # geom_density(aes(y=..density..))
+```
+
+If I set the cut off at 10% survival probability, I should be 94% accurate in predicting survival
+
+# Applying the model
+
+creating new data frame with the model applied
+```{r building final data frame}
+titanic.final <- titanic.clean %>% 
+  mutate(Survived = ifelse(survived_prob > .1, 1, 0))
+tail(titanic.final, n=20)
+```
+
+```{r}
+table(titanic.final$Survived)
 ```
 
